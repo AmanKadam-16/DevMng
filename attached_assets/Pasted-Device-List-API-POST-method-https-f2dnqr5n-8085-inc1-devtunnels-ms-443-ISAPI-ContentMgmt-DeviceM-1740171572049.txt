@@ -1,0 +1,163 @@
+Device List API
+
+POST method
+
+https://f2dnqr5n-8085.inc1.devtunnels.ms:443/ISAPI/ContentMgmt/DeviceMgmt/deviceList?format=json
+
+input 
+
+{
+
+    "SearchDescription": {
+
+        "position": 0,
+
+        "maxResult": 100,
+
+        "Filter": {
+
+            "key": "",
+
+            "devType": "",
+
+            "protocolType": [
+
+                "ISAPI"
+
+            ],
+
+            "devStatus": [
+
+                "online",
+
+                "offline"
+
+            ]
+
+        }
+
+    }
+
+}
+
+output : 
+
+{
+
+    "MatchList": [
+
+        {
+
+            "Device": {
+
+                "ISAPIParams": {
+
+                    "address": "192.168.1.160",
+
+                    "addressingFormatType": "IPV4Address",
+
+                    "portNo": 80
+
+                },
+
+                "activeStatus": true,
+
+                "devIndex": "15D6FDA0-2EA2-4D2A-818C-6048AD0C58B1",
+
+                "devMode": "DS-K1T804AMF",
+
+                "devName": "INS-1",
+
+                "devStatus": "online",
+
+                "devType": "AccessControl",
+
+                "devVersion": "V1.4.1  build 240318",
+
+                "protocolType": "ISAPI",
+
+                "videoChannelNum": 0
+
+            }
+
+        },
+
+        {
+
+            "Device": {
+
+                "ISAPIParams": {
+
+                    "address": "192.168.1.161",
+
+                    "addressingFormatType": "IPV4Address",
+
+                    "portNo": 80
+
+                },
+
+                "activeStatus": true,
+
+                "devIndex": "802694DF-ABFE-4D30-B01A-EEDE202EDEAF",
+
+                "devMode": "DS-K1T804AEF",
+
+                "devName": "INS-2",
+
+                "devStatus": "online",
+
+                "devType": "AccessControl",
+
+                "devVersion": "V1.4.0  build 230403",
+
+                "protocolType": "ISAPI",
+
+                "videoChannelNum": 0
+
+            }
+
+        },
+
+        {
+
+            "Device": {
+
+                "ISAPIParams": {
+
+                    "address": "192.168.0.2",
+
+                    "addressingFormatType": "IPV4Address",
+
+                    "portNo": 80
+
+                },
+
+                "devIndex": "E77C35DD-3DCF-4151-9153-C1FA6C1B4FE0",
+
+                "devMode": "",
+
+                "devName": "INS-3",
+
+                "devStatus": "offline",
+
+                "devType": "AccessControl",
+
+                "devVersion": "",
+
+                "offlineHint": 0,
+
+                "protocolType": "ISAPI",
+
+                "videoChannelNum": 0
+
+            }
+
+        }
+
+    ],
+
+    "numOfMatches": 5,
+
+    "totalMatches": 5
+
+}

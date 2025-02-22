@@ -1,0 +1,184 @@
+import type { Express } from "express";
+import { createServer, type Server } from "http";
+import { storage } from "./storage";
+import fetch from "node-fetch";
+import crypto from "crypto";
+
+const DEVICE_API_BASE_URL = 'https://f2dnqr5n-8085.inc1.devtunnels.ms';
+const DEVICE_USERNAME = 'admin';
+const DEVICE_PASSWORD = 'Insignia@12';
+
+const generateCNonce = () => {
+  const characters = 'abcdef0123456789';
+  let result = '';
+  for (let i = 0; i < 16; i++) {
+    result += characters.charAt(Math.floor(Math.random() * characters.length));
+  }
+  return result;
+};
+
+const parseDigestHeader = (header: string) => {
+  const params: Record<string, string> = {};
+  header.replace(/Digest\s+/, '').split(',').forEach(part => {
+    const [key, value] = part.trim().split('=');
+    params[key] = value?.replace(/"/g, '');
+  });
+  return params;
+};
+
+const generateDigestResponse = (method: string, uri: string, authParams: Record<string, string>) => {
+  const cnonce = generateCNonce();
+  const nc = '00000001';
+  const qop = authParams.qop;
+  const { realm, nonce } = authParams;
+  const username = DEVICE_USERNAME;
+  const password = DEVICE_PASSWORD;
+
+  const ha1 = crypto.createHash('md5').update(`${username}:${realm}:${password}`).digest('hex');
+  const ha2 = crypto.createHash('md5').update(`${method}:${uri}`).digest('hex');
+  const response = crypto.createHash('md5')
+    .update(`${ha1}:${nonce}:${nc}:${cnonce}:${qop}:${ha2}`)
+    .digest('hex');
+
+  return {
+    username,
+    realm,
+    nonce,
+    uri,
+    qop,
+    nc,
+    cnonce,
+    response,
+    algorithm: 'MD5'
+  };
+};
+
+export function registerRoutes(app: Express): Server {
+  // Device List endpoint
+  app.post('/api/devices', async (req, res) => {
+    const endpoint = '/ISAPI/ContentMgmt/DeviceMgmt/deviceList?format=json';
+
+    try {
+      // Initial request to get digest challenge
+      const initialResponse = await fetch(`${DEVICE_API_BASE_URL}${endpoint}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          SearchDescription: {
+            position: 0,
+            maxResult: 100,
+            Filter: {
+              key: '',
+              devType: '',
+              protocolType: ['ISAPI'],
+              devStatus: ['online', 'offline']
+            }
+          }
+        })
+      });
+
+      if (initialResponse.status === 401) {
+        const authHeader = initialResponse.headers.get('www-authenticate');
+        if (!authHeader) throw new Error('No authentication header received');
+
+        const authParams = parseDigestHeader(authHeader);
+        const digestResponse = generateDigestResponse('POST', endpoint, authParams);
+
+        // Build authorization header
+        const authString = Object.entries(digestResponse)
+          .map(([key, value]) => `${key}="${value}"`)
+          .join(', ');
+
+        // Authenticated request
+        const authenticatedResponse = await fetch(`${DEVICE_API_BASE_URL}${endpoint}`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Digest ${authString}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            SearchDescription: {
+              position: 0,
+              maxResult: 100,
+              Filter: {
+                key: '',
+                devType: '',
+                protocolType: ['ISAPI'],
+                devStatus: ['online', 'offline']
+              }
+            }
+          })
+        });
+
+        if (!authenticatedResponse.ok) {
+          throw new Error(`HTTP error! status: ${authenticatedResponse.status}`);
+        }
+
+        const data = await authenticatedResponse.json();
+        res.json(data);
+      } else {
+        res.status(500).json({ message: 'Unexpected response from device API' });
+      }
+    } catch (error) {
+      console.error('Error fetching devices:', error);
+      res.status(500).json({ message: error instanceof Error ? error.message : 'Internal Server Error' });
+    }
+  });
+
+ 
+
+  app.post('/api/devices/delete', async (req, res) => {
+    const endpoint = '/ISAPI/ContentMgmt/DeviceMgmt/delDevice?format=json';
+  
+    try {
+      // Initial request to get digest challenge
+      const initialResponse = await fetch(`${DEVICE_API_BASE_URL}${endpoint}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(req.body)
+      });
+  
+      if (initialResponse.status === 401) {
+        const authHeader = initialResponse.headers.get('www-authenticate');
+        if (!authHeader) throw new Error('No authentication header received');
+  
+        const authParams = parseDigestHeader(authHeader);
+        const digestResponse = generateDigestResponse('POST', endpoint, authParams);
+  
+        // Build authorization header
+        const authString = Object.entries(digestResponse)
+          .map(([key, value]) => `${key}="${value}"`)
+          .join(', ');
+  
+        // Authenticated request
+        const authenticatedResponse = await fetch(`${DEVICE_API_BASE_URL}${endpoint}`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Digest ${authString}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(req.body)
+        });
+  
+        if (!authenticatedResponse.ok) {
+          throw new Error(`HTTP error! status: ${authenticatedResponse.status}`);
+        }
+  
+        const data = await authenticatedResponse.json();
+        res.json(data);
+      } else {
+        res.status(500).json({ message: 'Unexpected response from device API' });
+      }
+    } catch (error) {
+      console.error('Error deleting device:', error);
+      res.status(500).json({ message: error instanceof Error ? error.message : 'Internal Server Error' });
+    }
+  });
+
+  const httpServer = createServer(app);
+  return httpServer;
+}
