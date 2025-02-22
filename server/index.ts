@@ -1,11 +1,13 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+import path from "path";
 
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
+// Logging middleware
 app.use((req, res, next) => {
   const start = Date.now();
   const path = req.path;
@@ -39,10 +41,10 @@ app.use((req, res, next) => {
 (async () => {
   const server = await registerRoutes(app);
 
+  // Error handling middleware
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";
-
     res.status(status).json({ message });
     throw err;
   });
@@ -53,7 +55,17 @@ app.use((req, res, next) => {
   if (app.get("env") === "development") {
     await setupVite(app, server);
   } else {
-    serveStatic(app);
+    // Serve static files in production
+    app.use(express.static(path.resolve(__dirname, 'public')));
+
+    // Handle client-side routing - serve index.html for all non-API routes
+    app.get('*', (req, res) => {
+      // Skip this middleware for API routes
+      if (req.path.startsWith('/api')) {
+        return next();
+      }
+      res.sendFile(path.resolve(__dirname, 'public', 'index.html'));
+    });
   }
 
   // ALWAYS serve the app on port 5000
